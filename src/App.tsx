@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import React from 'react';
-import { BarChart3, Edit3, X, Check, Save, TrendingUp } from 'lucide-react';
+import { BarChart3, X } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -673,13 +673,6 @@ function App() {
     setEditedWcaId(graph.wcaId);
     setEditedEvent(graph.event);
     setEditedResultType(graph.resultType);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingGraphId(null);
-    setEditedWcaId('');
-    setEditedEvent('');
-    setEditedResultType('');
   };
 
   const handleSaveEdit = async (id: number) => {
