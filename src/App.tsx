@@ -2023,7 +2023,7 @@ function App() {
                             const uniqueKey = `${personName}__${graph.id}`;
                             headToHeadStats.set(uniqueKey, {
                               personName,
-                              graphId: graph.id,
+                              graphId: String(graph.id),
                               event: graph.event || 'Unknown',
                               wins: 0,
                               meetings: 0,
@@ -2191,8 +2191,8 @@ function App() {
                                     const label1 = `${validGraphs[i].personName || validGraphs[i].wcaId} (${validGraphs[i].event || 'Unknown'})`;
                                     const label2 = `${validGraphs[j].personName || validGraphs[j].wcaId} (${validGraphs[j].event || 'Unknown'})`;
                                     correlations.push({
-                                      graph1: validGraphs[i].id,
-                                      graph2: validGraphs[j].id,
+                                      graph1: String(validGraphs[i].id),
+                                      graph2: String(validGraphs[j].id),
                                       correlation: corr,
                                       label1,
                                       label2
