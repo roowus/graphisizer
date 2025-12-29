@@ -23,6 +23,8 @@ interface DataPoint {
   round: string;
   position?: number;
   isDNF?: boolean;
+  event?: string;
+  graphId?: number;
 }
 
 interface Graph {
@@ -166,6 +168,30 @@ const CustomActiveDot = (props: any) => {
   );
 };
 
+// Format multi-blind result from WCA API encoding
+// Format: solved * 1000000 + attempted * 10000 + time (in centiseconds)
+// Example: 59 solved, 60 attempted, 59:46 time = 59*1000000 + 60*10000 + 59*60 + 46
+function formatMultiBlind(result: number): string {
+  if (result <= 0) return 'DNF';
+
+  // Extract solved, attempted, and time
+  const solved = Math.floor(result / 1000000);
+  const attempted = Math.floor((result % 1000000) / 10000);
+  const time = result % 10000; // in centiseconds
+
+  // Special case for 99:99 (old DNF format)
+  if (result === 99999999) return 'DNF';
+
+  // Format as "XX/YY TT:TT"
+  const minutes = Math.floor(time / 100 / 60);
+  const seconds = (time / 100) % 60;
+  const timeStr = time > 0
+    ? `${minutes}:${seconds.toFixed(2).padStart(5, '0')}`
+    : '';
+
+  return `${solved}/${attempted}${timeStr ? ' ' + timeStr : ''}`;
+}
+
 // Format WCA time (in centiseconds) to readable time string
 export function formatWcaTime(time: number): string {
   if (time <= 0) return 'DNF';
@@ -178,14 +204,27 @@ export function formatWcaTime(time: number): string {
   return `${minutes}:${remainingSeconds.toFixed(2).padStart(5, '0')}`;
 }
 
-// Format value based on result type
-function formatValue(value: number, resultType: string): string {
+// Format value based on result type and event
+function formatValue(value: number, resultType: string, eventId: string = ''): string {
+  // Multi-blind special formatting
+  if (eventId === '333mbf') {
+    return formatMultiBlind(value);
+  }
+
+  // FMC (fewest moves) - move count, not time
+  if (eventId === '333fm') {
+    if (value <= 0) return 'DNF';
+    return Math.round(value).toString();
+  }
+
+  // Rank and record types
   if (resultType === 'rank') {
     return Math.round(value).toString();
   }
   if (resultType === 'cr' || resultType === 'nr' || resultType === 'wr') {
     return Math.round(value).toString();
   }
+  // Time-based events
   return formatWcaTime(value);
 }
 
@@ -495,10 +534,10 @@ function App() {
     { id: '666', name: '6x6x6' },
     { id: '777', name: '7x7x7' },
     { id: '333oh', name: '3x3 One-Handed' },
-    { id: '222bf', name: '2x2 Blindfolded' },
     { id: '333bf', name: '3x3 Blindfolded' },
     { id: '444bf', name: '4x4 Blindfolded' },
     { id: '555bf', name: '5x5 Blindfolded' },
+    { id: '333mbf', name: '3x3 Multi-Blind' },
     { id: '333fm', name: '3x3 Fewest Moves' },
     { id: 'clock', name: 'Clock' },
     { id: 'minx', name: 'Megaminx' },
@@ -591,7 +630,9 @@ function App() {
                 value: round[graph.resultType as keyof typeof round] as number || 0,
                 round: round.name,
                 position: round.pos,
-                isDNF: !round[graph.resultType as keyof typeof round]
+                isDNF: !round[graph.resultType as keyof typeof round],
+                event: graph.event,
+                graphId: graph.id
               };
             })
             .filter((dp: DataPoint) => !dp.isDNF || dp.isDNF === undefined);
@@ -1751,6 +1792,7 @@ function App() {
                           // Get the first graph's result type to determine formatting
                           const firstGraph = graphs.find(g => !g.loading && !g.error);
                           const resultType = firstGraph?.resultType || 'single';
+                          const eventId = firstGraph?.event || '333';
                           const isTimeBased = !['rank', 'cr', 'nr', 'wr'].includes(resultType);
 
                           if (showImprovementMode && showPercentChange) {
@@ -1769,7 +1811,7 @@ function App() {
                             if (isTimeBased) {
                               // For time values, round to nearest centisecond (divisible by 10)
                               const roundedValue = Math.round(value / 10) * 10;
-                              return formatValue(roundedValue, resultType);
+                              return formatValue(roundedValue, resultType, eventId);
                             } else {
                               // For rank, always use whole numbers
                               return Math.round(value).toString();
@@ -1981,8 +2023,12 @@ function App() {
                     <div className="comparison-list">
                       {(() => {
                         // Calculate all comparison-wide stats first (independent of selection)
-                        const resultType = graphs.find((g: any) => g.id)?.resultType || 'single';
+                        const firstGraph = graphs.find((g: any) => g.id);
+                        const resultType = firstGraph?.resultType || 'single';
+                        const eventId = firstGraph?.event || '333';
                         const isTimeBased = ['single', 'average', 'solves', 'worst'].includes(resultType);
+                        const isFmc = eventId === '333fm';
+                        const isMultiBlind = eventId === '333mbf';
 
                         // Calculate global/comparison-wide stats from ALL data points
                         const allValidPoints = allChartData.filter(p => !p.isDNF && p.value !== null && p.value !== undefined && p.value > 0);
@@ -2282,15 +2328,15 @@ function App() {
                                     COMPARISON STATS ({graphs.length} {graphs.length === 1 ? 'graph' : 'graphs'}, {allValidPoints.length} results)
                                   </div>
                                   <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem', color: '#cbd5e1', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px' }}>
-                                    <span>Avg: <strong style={{ color: '#f1f5f9' }}>{isTimeBased ? formatWcaTime(globalStats.mean) : globalStats.mean.toFixed(2)}</strong><ComparisonInfoIcon title="Average of all competitors" /></span>
-                                    <span>Med: <strong style={{ color: '#f1f5f9' }}>{isTimeBased ? formatWcaTime(globalStats.median) : globalStats.median.toFixed(2)}</strong><ComparisonInfoIcon title="Median value" /></span>
-                                    <span>Best: <strong style={{ color: '#22c55e' }}>{isTimeBased ? formatWcaTime(globalStats.min) : globalStats.min.toFixed(2)}</strong><ComparisonInfoIcon title="Best result" /></span>
-                                    <span>Worst: <strong style={{ color: '#ef4444' }}>{isTimeBased ? formatWcaTime(globalStats.max) : globalStats.max.toFixed(2)}</strong><ComparisonInfoIcon title="Worst result" /></span>
+                                    <span>Avg: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.mean.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.mean) : globalStats.mean.toFixed(2)}</strong><ComparisonInfoIcon title="Average of all competitors" /></span>
+                                    <span>Med: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.median.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.median) : globalStats.median.toFixed(2)}</strong><ComparisonInfoIcon title="Median value" /></span>
+                                    <span>Best: <strong style={{ color: '#22c55e' }}>{formatValue(globalStats.min, resultType, eventId)}</strong><ComparisonInfoIcon title="Best result" /></span>
+                                    <span>Worst: <strong style={{ color: '#ef4444' }}>{formatValue(globalStats.max, resultType, eventId)}</strong><ComparisonInfoIcon title="Worst result" /></span>
                                     {allValidPoints.length > 1 && (
-                                      <span>Range: <strong style={{ color: '#f1f5f9' }}>{isTimeBased ? formatWcaTime(globalStats.max - globalStats.min) : (globalStats.max - globalStats.min).toFixed(2)}</strong><ComparisonInfoIcon title="Range (max - min)" /></span>
+                                      <span>Range: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? (globalStats.max - globalStats.min).toFixed(1) : isTimeBased ? formatWcaTime(globalStats.max - globalStats.min) : (globalStats.max - globalStats.min).toFixed(2)}</strong><ComparisonInfoIcon title="Range (max - min)" /></span>
                                     )}
                                     {globalStats.stdDev !== null && (
-                                      <span>Std Dev: <strong style={{ color: '#f1f5f9' }}>{isTimeBased ? formatWcaTime(globalStats.stdDev) : globalStats.stdDev.toFixed(2)}</strong><ComparisonInfoIcon title="Standard deviation" /></span>
+                                      <span>Std Dev: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.stdDev.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.stdDev) : globalStats.stdDev.toFixed(2)}</strong><ComparisonInfoIcon title="Standard deviation" /></span>
                                     )}
                                     <span>Results: <strong style={{ color: '#f1f5f9' }}>{allValidPoints.length}</strong><ComparisonInfoIcon title="Total valid results" /></span>
                                   </div>
@@ -2448,7 +2494,7 @@ function App() {
                                         displayValue = 'N/A';
                                       }
                                     } else {
-                                      displayValue = formatValue(point.originalValue, resultType);
+                                      displayValue = formatValue(point.originalValue, resultType, point.event);
                                     }
 
                                     let trendArrow = null;
@@ -2686,7 +2732,7 @@ function App() {
                             <td style={{ padding: '12px', color: '#cbd5e1' }}>{d.competitionName}</td>
                             <td style={{ padding: '12px', color: '#cbd5e1' }}>{d.round}</td>
                             <td style={{ padding: '12px', textAlign: 'right', color: d.isDNF ? '#94a3b8' : '#f1f5f9', fontWeight: 'bold' }}>
-                              {d.isDNF ? 'DNF' : formatValue(d.value, resultType)}
+                              {d.isDNF ? 'DNF' : formatValue(d.value, resultType, graph?.event)}
                             </td>
                             <td style={{ padding: '12px', textAlign: 'right', color: '#cbd5e1', fontWeight: 'bold' }}>
                               {changeFromPrev !== null ? (
