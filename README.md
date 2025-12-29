@@ -1,73 +1,65 @@
-# React + TypeScript + Vite
+# Graphisizer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+<!-- Social Preview Image -->
+<div align="center">
+  <img src="public/social-preview.svg" alt="Graphisizer Social Preview" width="1200">
+</div>
 
-Currently, two official plugins are available:
+**Visualize WCA competitor progression and compare performances over time**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Graphisizer is a powerful tool for tracking and comparing speedcubing progression data from the World Cube Association (WCA). View personal bests, analyze trends, and share custom comparisons with friends.
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 📊 **Multiple Data Views**: Raw values, unit change, and percent change modes
+- 👥 **Multi-Competitor Comparison**: Compare up to 10 competitors side-by-side
+- 🔍 **Comprehensive Search**: Search by WCA ID or competitor name
+- 📈 **All Solves Mode**: View individual solve times from competitions
+- 🏆 **Head-to-Head Rankings**: See direct competition stats between competitors
+- 📊 **Statistical Analysis**: Mean, median, standard deviation, and more
+- 🔗 **Shareable URLs**: Share comparisons via URL parameters
 
-## Expanding the ESLint configuration
+## Live Demo
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+🚀 **[graphisizer.vercel.app](https://graphisizer.vercel.app)**
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## How to Use
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1. **Search Competitors**: Enter a WCA ID or name (e.g., "Max Park" or "2022SMIT01")
+2. **Select Event**: Choose from 17 WCA events (3x3x3, 2x2x2, Clock, etc.)
+3. **Choose Result Type**: Single best, average, rank, or all solves
+4. **Compare**: Add multiple competitors to visualize their progression
+5. **Share**: Copy the URL to share your comparison
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Tech Stack
+
+- ⚛️ **React 19** - UI library
+- 📝 **TypeScript** - Type safety
+- 🎨 **Recharts** - Data visualization
+- 🎭 **Framer Motion** - Animations
+- 📦 **Vite** - Build tool
+- 🚀 **Vercel** - Hosting
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run tests
+npm test
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## License
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+MIT License - feel free to use this project for your own purposes!
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+
+Made with ❤️ for the speedcubing community
