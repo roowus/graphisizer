@@ -169,28 +169,41 @@ const CustomActiveDot = (props: any) => {
 };
 
 // Format multi-blind result from WCA API encoding
-// Format: (solved * 1000000) + (attempted * 10000) + time (in centiseconds)
-// But we need to use bit shifting: solved is in bits 16-24, attempted in bits 8-16, time in bits 0-8
-// Actually: solved * 2^16 + attempted * 2^8 + time
+// Format: 99DDDDDDDDD (11 digits total)
+// - First 2 digits: 99 minus points (solved cubes)
+// - Middle 5 digits: time in seconds
+// - Last 2 digits: unsuccessful/missed cubes
+// Example: 850347501 = 14/15 57:55
+//   - 85 = 99 - 14 (solved)
+//   - 03475 = 3475 seconds = 57:55
+//   - 01 = 1 missed, so attempted = 14 + 1 = 15
 function formatMultiBlind(result: number): string {
   if (result <= 0) return 'DNF';
 
-  // Extract solved, attempted, and time using bit shifting
-  const solved = (result >> 16) & 0xFF;
-  const attempted = (result >> 8) & 0xFF;
-  const time = result & 0xFF; // in seconds (not centiseconds!)
+  // Convert to string and parse
+  const resultStr = result.toString().padStart(11, '0');
 
-  // Special case for 99:99 (old DNF format)
-  if (result === 99999999 || result === 0xFFFF) return 'DNF';
+  // First 2 digits: 99 minus solved
+  const pointsPart = parseInt(resultStr.substring(0, 2));
+  const solved = 99 - pointsPart;
 
-  // If no time recorded (time = 99 or 255), just show solved/attempted
-  if (time >= 99) {
+  // Last 2 digits: missed cubes
+  const missed = parseInt(resultStr.substring(9, 11));
+
+  // Attempted = solved + missed
+  const attempted = solved + missed;
+
+  // Middle 5 digits: time in seconds
+  const timeSeconds = parseInt(resultStr.substring(2, 7));
+
+  // If time is 99999 or larger, it means DNF or no time recorded
+  if (timeSeconds >= 99999) {
     return `${solved}/${attempted}`;
   }
 
   // Format time as MM:SS
-  const minutes = Math.floor(time / 60);
-  const seconds = time % 60;
+  const minutes = Math.floor(timeSeconds / 60);
+  const seconds = timeSeconds % 60;
   const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
   return `${solved}/${attempted} ${timeStr}`;
