@@ -169,27 +169,31 @@ const CustomActiveDot = (props: any) => {
 };
 
 // Format multi-blind result from WCA API encoding
-// Format: solved * 1000000 + attempted * 10000 + time (in centiseconds)
-// Example: 59 solved, 60 attempted, 59:46 time = 59*1000000 + 60*10000 + 59*60 + 46
+// Format: (solved * 1000000) + (attempted * 10000) + time (in centiseconds)
+// But we need to use bit shifting: solved is in bits 16-24, attempted in bits 8-16, time in bits 0-8
+// Actually: solved * 2^16 + attempted * 2^8 + time
 function formatMultiBlind(result: number): string {
   if (result <= 0) return 'DNF';
 
-  // Extract solved, attempted, and time
-  const solved = Math.floor(result / 1000000);
-  const attempted = Math.floor((result % 1000000) / 10000);
-  const time = result % 10000; // in centiseconds
+  // Extract solved, attempted, and time using bit shifting
+  const solved = (result >> 16) & 0xFF;
+  const attempted = (result >> 8) & 0xFF;
+  const time = result & 0xFF; // in seconds (not centiseconds!)
 
   // Special case for 99:99 (old DNF format)
-  if (result === 99999999) return 'DNF';
+  if (result === 99999999 || result === 0xFFFF) return 'DNF';
 
-  // Format as "XX/YY TT:TT"
-  const minutes = Math.floor(time / 100 / 60);
-  const seconds = (time / 100) % 60;
-  const timeStr = time > 0
-    ? `${minutes}:${seconds.toFixed(2).padStart(5, '0')}`
-    : '';
+  // If no time recorded (time = 99 or 255), just show solved/attempted
+  if (time >= 99) {
+    return `${solved}/${attempted}`;
+  }
 
-  return `${solved}/${attempted}${timeStr ? ' ' + timeStr : ''}`;
+  // Format time as MM:SS
+  const minutes = Math.floor(time / 60);
+  const seconds = time % 60;
+  const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+  return `${solved}/${attempted} ${timeStr}`;
 }
 
 // Format WCA time (in centiseconds) to readable time string
@@ -1380,6 +1384,19 @@ function App() {
                   const validPoints = graph.dataPoints.filter(p => !p.isDNF);
                   if (validPoints.length === 0) return null;
 
+                  const isFmc = graph.event === '333fm';
+                  const isMultiBlind = graph.event === '333mbf';
+
+                  // For multi-blind, don't calculate statistics since values are encoded
+                  if (isMultiBlind) {
+                    return (
+                      <div style={{ display: 'flex', gap: '12px', fontSize: '0.7rem', color: 'var(--text-secondary)', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span>Results: <strong style={{ color: 'var(--text-primary)' }}>{validPoints.length}</strong></span>
+                        <span>Statistics not available for Multi-Blind</span>
+                      </div>
+                    );
+                  }
+
                   const best = Math.min(...validPoints.map(p => p.value));
                   const worst = Math.max(...validPoints.map(p => p.value));
                   const mean = validPoints.reduce((sum, p) => sum + p.value, 0) / validPoints.length;
@@ -1398,6 +1415,12 @@ function App() {
                   const variance = validPoints.reduce((sum, p) => sum + Math.pow(p.value - mean, 2), 0) / validPoints.length;
                   const stdDev = Math.sqrt(variance);
                   const consistency = mean > 0 ? (stdDev / mean) * 100 : 0;
+
+                  // Format value helper
+                  const formatStatValue = (val: number) => {
+                    if (isFmc) return val.toFixed(1);
+                    return formatWcaTime(val);
+                  };
 
                   // Info icon with tooltip
                   const InfoIcon = ({ title }: { title: string }) => (
@@ -1457,14 +1480,14 @@ function App() {
 
                   return (
                     <div style={{ display: 'flex', gap: '12px', fontSize: '0.7rem', color: 'var(--text-secondary)', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span>Avg: <strong style={{ color: 'var(--text-primary)' }}>{formatWcaTime(mean)}</strong><InfoIcon title="Arithmetic mean of all results" /></span>
-                      <span>Med: <strong style={{ color: 'var(--text-primary)' }}>{formatWcaTime(median)}</strong><InfoIcon title="Middle value (50th percentile)" /></span>
-                      <span>Q1: <strong style={{ color: 'var(--text-primary)' }}>{q1 !== undefined ? formatWcaTime(q1) : 'N/A'}</strong><InfoIcon title="25th percentile (25% of results are below this)" /></span>
-                      <span>Q3: <strong style={{ color: 'var(--text-primary)' }}>{q3 !== undefined ? formatWcaTime(q3) : 'N/A'}</strong><InfoIcon title="75th percentile (75% of results are below this)" /></span>
-                      <span>IQR: <strong style={{ color: 'var(--text-primary)' }}>{iqr !== null ? formatWcaTime(iqr) : 'N/A'}</strong><InfoIcon title="Interquartile range (Q3 - Q1), measures spread of middle 50%" /></span>
-                      <span>Std: <strong style={{ color: 'var(--text-primary)' }}>{formatWcaTime(stdDev)}</strong><InfoIcon title="Standard deviation, measures how spread out results are" /></span>
+                      <span>Avg: <strong style={{ color: 'var(--text-primary)' }}>{formatStatValue(mean)}</strong><InfoIcon title="Arithmetic mean of all results" /></span>
+                      <span>Med: <strong style={{ color: 'var(--text-primary)' }}>{formatStatValue(median)}</strong><InfoIcon title="Middle value (50th percentile)" /></span>
+                      <span>Q1: <strong style={{ color: 'var(--text-primary)' }}>{q1 !== undefined ? formatStatValue(q1) : 'N/A'}</strong><InfoIcon title="25th percentile (25% of results are below this)" /></span>
+                      <span>Q3: <strong style={{ color: 'var(--text-primary)' }}>{q3 !== undefined ? formatStatValue(q3) : 'N/A'}</strong><InfoIcon title="75th percentile (75% of results are below this)" /></span>
+                      <span>IQR: <strong style={{ color: 'var(--text-primary)' }}>{iqr !== null ? formatStatValue(iqr) : 'N/A'}</strong><InfoIcon title="Interquartile range (Q3 - Q1), measures spread of middle 50%" /></span>
+                      <span>Std: <strong style={{ color: 'var(--text-primary)' }}>{formatStatValue(stdDev)}</strong><InfoIcon title="Standard deviation, measures how spread out results are" /></span>
                       <span>Cons: <strong style={{ color: 'var(--text-primary)' }}>{consistency.toFixed(1)}%</strong><InfoIcon title="Coefficient of variation (lower = more consistent)" /></span>
-                      <span title={`Best: ${formatWcaTime(best)} | Worst: ${formatWcaTime(worst)}`}>Results: <strong style={{ color: 'var(--text-primary)' }}>{graph.dataPoints.length}</strong></span>
+                      <span title={`Best: ${formatStatValue(best)} | Worst: ${formatStatValue(worst)}`}>Results: <strong style={{ color: 'var(--text-primary)' }}>{graph.dataPoints.length}</strong></span>
                     </div>
                   );
                 })()}
