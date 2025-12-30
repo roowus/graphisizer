@@ -180,41 +180,36 @@ const CustomActiveDot = (props: any) => {
 function formatMultiBlind(result: number): string {
   if (result <= 0) return 'DNF';
 
-  // Debug: log the raw value
-  console.log('formatMultiBlind raw value:', result, 'as string:', result.toString());
-
-  // Convert to string and parse
-  const resultStr = result.toString().padStart(11, '0');
-  console.log('padded resultStr:', resultStr);
+  // Convert to string (9-digit format, not 11!)
+  const resultStr = result.toString().padStart(9, '0');
 
   // First 2 digits: 99 minus solved
   const pointsPart = parseInt(resultStr.substring(0, 2));
   const solved = 99 - pointsPart;
-  console.log('pointsPart:', pointsPart, 'solved:', solved);
 
-  // Last 2 digits: missed cubes
-  const missed = parseInt(resultStr.substring(9, 11));
-  console.log('missed:', missed);
+  // Last 2 digits: missed/unsolved cubes
+  const missed = parseInt(resultStr.substring(7, 9));
 
   // Attempted = solved + missed
   const attempted = solved + missed;
-  console.log('attempted:', attempted);
 
   // Middle 5 digits: time in seconds
   const timeSeconds = parseInt(resultStr.substring(2, 7));
-  console.log('timeSeconds:', timeSeconds);
 
-  // If time is 99999 or larger, it means DNF or no time recorded
-  if (timeSeconds >= 99999) {
-    return `${solved}/${attempted}`;
+  // Format time as HH:MM:SS (multi-blind can be very long)
+  const hours = Math.floor(timeSeconds / 3600);
+  const minutes = Math.floor((timeSeconds % 3600) / 60);
+  const seconds = timeSeconds % 60;
+
+  let timeStr = '';
+  if (hours > 0) {
+    timeStr = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  } else if (minutes > 0) {
+    timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  } else {
+    timeStr = `${seconds}s`;
   }
 
-  // Format time as MM:SS
-  const minutes = Math.floor(timeSeconds / 60);
-  const seconds = timeSeconds % 60;
-  const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-
-  console.log('final result:', `${solved}/${attempted} ${timeStr}`);
   return `${solved}/${attempted} ${timeStr}`;
 }
 
