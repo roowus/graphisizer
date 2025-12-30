@@ -2040,6 +2040,24 @@ function App() {
                         const isFmc = eventId === '333fm';
                         const isMultiBlind = eventId === '333mbf';
 
+                        // Check for incompatible unit types across graphs
+                        const hasFmc = graphs.some(g => g.event === '333fm');
+                        const hasMultiBlind = graphs.some(g => g.event === '333mbf');
+                        const hasTimeBased = graphs.some(g => !['333fm', '333mbf'].includes(g.event || '') && !['rank'].includes(g.resultType || ''));
+                        const hasRank = graphs.some(g => g.resultType === 'rank');
+
+                        // Determine if we have incompatible types
+                        const incompatibleTypes = (hasFmc && (hasMultiBlind || hasTimeBased || hasRank)) ||
+                                                  (hasMultiBlind && (hasFmc || hasTimeBased || hasRank)) ||
+                                                  (hasRank && (hasFmc || hasMultiBlind)) ||
+                                                  (hasTimeBased && (hasFmc || hasMultiBlind));
+
+                        const unitTypes = [];
+                        if (hasFmc) unitTypes.push('FMC (moves)');
+                        if (hasMultiBlind) unitTypes.push('Multi-Blind');
+                        if (hasTimeBased) unitTypes.push('Time-based');
+                        if (hasRank) unitTypes.push('Rank');
+
                         // Calculate global/comparison-wide stats from ALL data points
                         const allValidPoints = allChartData.filter(p => !p.isDNF && p.value !== null && p.value !== undefined && p.value > 0);
                         const globalStats = allValidPoints.length > 0 ? {
@@ -2332,7 +2350,19 @@ function App() {
                               borderRadius: '8px'
                             }}>
                               {/* Global Graph Stats */}
-                              {globalStats && (
+                              {incompatibleTypes ? (
+                                <>
+                                  <div style={{ fontSize: '0.7rem', color: '#ef4444', marginBottom: '8px', fontWeight: 600 }}>
+                                    ⚠️ INCOMPATIBLE UNIT TYPES
+                                  </div>
+                                  <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '12px', lineHeight: '1.5' }}>
+                                    Cannot compare {unitTypes.join(' vs ')} together. These use different measurement systems and cannot be meaningfully compared.
+                                  </div>
+                                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                                    Please add graphs with compatible result types only.
+                                  </div>
+                                </>
+                              ) : globalStats && (
                                 <>
                                   <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '8px', fontWeight: 600 }}>
                                     COMPARISON STATS ({graphs.length} {graphs.length === 1 ? 'graph' : 'graphs'}, {allValidPoints.length} results)
@@ -2354,7 +2384,7 @@ function App() {
                               )}
 
                               {/* Head-to-Head Rankings */}
-                              {graphs.length > 1 && headToHeadStats.size > 0 && (
+                              {!incompatibleTypes && graphs.length > 1 && headToHeadStats.size > 0 && (
                                 <>
                                   <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '8px', fontWeight: 600, marginTop: globalStats ? '12px' : 0 }}>
                                     HEAD-TO-HEAD RANKINGS
@@ -2398,7 +2428,7 @@ function App() {
                               )}
 
                               {/* Correlation Stats */}
-                              {correlationStats && correlationStats.correlations.length > 0 && (
+                              {!incompatibleTypes && correlationStats && correlationStats.correlations.length > 0 && (
                                 <>
                                   <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '8px', fontWeight: 600, marginTop: '12px' }}>
                                     CORRELATION ({correlationStats.dataPoints} {correlationStats.dataPoints === 1 ? 'pair' : 'pairs'})
