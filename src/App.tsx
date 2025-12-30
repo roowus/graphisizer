@@ -180,21 +180,29 @@ const CustomActiveDot = (props: any) => {
 function formatMultiBlind(result: number): string {
   if (result <= 0) return 'DNF';
 
+  // Debug: log the raw value
+  console.log('formatMultiBlind raw value:', result, 'as string:', result.toString());
+
   // Convert to string and parse
   const resultStr = result.toString().padStart(11, '0');
+  console.log('padded resultStr:', resultStr);
 
   // First 2 digits: 99 minus solved
   const pointsPart = parseInt(resultStr.substring(0, 2));
   const solved = 99 - pointsPart;
+  console.log('pointsPart:', pointsPart, 'solved:', solved);
 
   // Last 2 digits: missed cubes
   const missed = parseInt(resultStr.substring(9, 11));
+  console.log('missed:', missed);
 
   // Attempted = solved + missed
   const attempted = solved + missed;
+  console.log('attempted:', attempted);
 
   // Middle 5 digits: time in seconds
   const timeSeconds = parseInt(resultStr.substring(2, 7));
+  console.log('timeSeconds:', timeSeconds);
 
   // If time is 99999 or larger, it means DNF or no time recorded
   if (timeSeconds >= 99999) {
@@ -206,6 +214,7 @@ function formatMultiBlind(result: number): string {
   const seconds = timeSeconds % 60;
   const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
+  console.log('final result:', `${solved}/${attempted} ${timeStr}`);
   return `${solved}/${attempted} ${timeStr}`;
 }
 
@@ -617,49 +626,19 @@ function App() {
 
     if (graphParams.length > 0) {
       setGraphs(graphParams);
-      // Fetch data for each graph
+      // Fetch data for each graph using the same API as the main app
       graphParams.forEach(async (graph) => {
         try {
-          const response = await fetch(
-            `https://worldcubeassociation.org/api/v0/persons/${graph.wcaId}`
-          );
-          if (!response.ok) throw new Error('Person not found');
-          const personData = await response.json();
-          const person = personData.person;
-
-          const compsResponse = await fetch(
-            `https://worldcubeassociation.org/api/v0/persons/${graph.wcaId}/competitions?all_results=true`
-          );
-          if (!compsResponse.ok) throw new Error('Competitions not found');
-          const compsData = await compsResponse.json();
-
-          const eventComps = compsData.competition_events.filter(
-            (c: any) => c.event_id === graph.event
-          );
-
-          const dataPoints: DataPoint[] = eventComps
-            .filter((comp: any) => comp.rounds.length > 0)
-            .map((comp: any) => {
-              const round = comp.rounds[0];
-              return {
-                date: new Date(comp.start_date),
-                competitionName: comp.name,
-                value: round[graph.resultType as keyof typeof round] as number || 0,
-                round: round.name,
-                position: round.pos,
-                isDNF: !round[graph.resultType as keyof typeof round],
-                event: graph.event,
-                graphId: graph.id
-              };
-            })
-            .filter((dp: DataPoint) => !dp.isDNF || dp.isDNF === undefined);
+          // Use the same fetchGraphData function as the main app
+          const result = await fetchGraphData(graph.wcaId, graph.event, graph.resultType);
 
           setGraphs(prev => prev.map(g =>
             g.id === graph.id
-              ? { ...g, loading: false, personName: person.name, dataPoints }
+              ? { ...g, loading: false, personName: result.personName, dataPoints: result.dataPoints }
               : g
           ));
         } catch (error) {
+          console.error('Error loading graph from URL:', error);
           setGraphs(prev => prev.map(g =>
             g.id === graph.id
               ? { ...g, loading: false, error: 'Failed to load data' }
