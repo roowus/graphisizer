@@ -59,7 +59,3 @@ npm test
 ## License
 
 MIT License - feel free to use this project for your own purposes!
-
----
-
-Made with ❤️ for the speedcubing community
