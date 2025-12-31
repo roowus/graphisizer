@@ -23,3 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Internal documentation & specs (keep local only)
+**/*spec*.md
+**/*internal*.md
+**/*vibecoding*.md
+**/docs/internal/
+**/specs/internal/
