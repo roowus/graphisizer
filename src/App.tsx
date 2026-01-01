@@ -601,22 +601,6 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const graphParams: Graph[] = [];
 
-    // Parse view mode from URL
-    const viewMode = params.get('view');
-    if (viewMode === 'unit') {
-      setShowImprovementMode(true);
-      setShowUnitChange(true);
-      setShowPercentChange(false);
-    } else if (viewMode === 'percent') {
-      setShowImprovementMode(true);
-      setShowPercentChange(true);
-      setShowUnitChange(false);
-    } else {
-      setShowImprovementMode(false);
-      setShowUnitChange(false);
-      setShowPercentChange(false);
-    }
-
     params.forEach((value, key) => {
       if (key.startsWith('g')) {
         const parts = value.split(':');
@@ -660,7 +644,7 @@ function App() {
     }
   }, []);
 
-  // Update URL when graphs or view mode changes
+  // Update URL when graphs change
   useEffect(() => {
     if (graphs.length === 0) {
       window.history.replaceState({}, '', window.location.pathname);
@@ -672,18 +656,9 @@ function App() {
       params.set(`g${index + 1}`, `${graph.wcaId}:${graph.event}:${graph.resultType}`);
     });
 
-    // Add view mode to URL
-    if (showImprovementMode) {
-      if (showPercentChange) {
-        params.set('view', 'percent');
-      } else if (showUnitChange) {
-        params.set('view', 'unit');
-      }
-    }
-
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, '', newUrl);
-  }, [graphs, showImprovementMode, showUnitChange, showPercentChange]);
+  }, [graphs]);
 
   // Search for WCA persons by name or ID
   useEffect(() => {
@@ -1693,64 +1668,41 @@ function App() {
                 <h3 className="chart-title">
                   {showImprovementMode ? 'Change' : 'Progression'}
                 </h3>
-                {(() => {
-                  // Determine which view modes are available
-                  const hasFmc = graphs.some(g => g.event === '333fm');
-                  const hasMultiBlind = graphs.some(g => g.event === '333mbf');
-                  const hasRank = graphs.some(g => g.resultType === 'rank');
-
-                  // % change is not available for FMC, multi-blind, or rank
-                  const percentChangeDisabled = hasFmc || hasMultiBlind || hasRank;
-
-                  return (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => {
-                          console.log('Raw button clicked');
-                          setShowImprovementMode(false);
-                          setShowUnitChange(false);
-                          setShowPercentChange(false);
-                        }}
-                        className={`improvement-toggle ${!showImprovementMode ? 'active' : ''}`}
-                        disabled={false}
-                      >
-                        Raw
-                      </button>
-                      <button
-                        onClick={() => {
-                          console.log('Unit button clicked - setting improvement mode');
-                          setShowImprovementMode(true);
-                          setShowUnitChange(true);
-                          setShowPercentChange(false);
-                        }}
-                        className={`improvement-toggle ${showImprovementMode && showUnitChange ? 'active' : ''}`}
-                        disabled={false}
-                      >
-                        Unit
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (!percentChangeDisabled) {
-                            console.log('Percent button clicked - setting improvement mode');
-                            setShowImprovementMode(true);
-                            setShowPercentChange(true);
-                            setShowUnitChange(false);
-                          }
-                        }}
-                        className={`improvement-toggle ${showImprovementMode && showPercentChange ? 'active' : ''} ${percentChangeDisabled ? 'disabled' : ''}`}
-                        disabled={percentChangeDisabled}
-                        style={percentChangeDisabled ? {
-                          opacity: 0.4,
-                          cursor: 'not-allowed',
-                          filter: 'grayscale(100%)'
-                        } : {}}
-                        title={percentChangeDisabled ? 'Percent change is not available for FMC, multi-blind, or rank results' : ''}
-                      >
-                        %
-                      </button>
-                    </div>
-                  );
-                })()}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      console.log('Raw button clicked');
+                      setShowImprovementMode(false);
+                      setShowUnitChange(false);
+                      setShowPercentChange(false);
+                    }}
+                    className={`improvement-toggle ${!showImprovementMode ? 'active' : ''}`}
+                  >
+                    Raw
+                  </button>
+                  <button
+                    onClick={() => {
+                      console.log('Unit button clicked - setting improvement mode');
+                      setShowImprovementMode(true);
+                      setShowUnitChange(true);
+                      setShowPercentChange(false);
+                    }}
+                    className={`improvement-toggle ${showImprovementMode && showUnitChange ? 'active' : ''}`}
+                  >
+                    Unit
+                  </button>
+                  <button
+                    onClick={() => {
+                      console.log('Percent button clicked - setting improvement mode');
+                      setShowImprovementMode(true);
+                      setShowPercentChange(true);
+                      setShowUnitChange(false);
+                    }}
+                    className={`improvement-toggle ${showImprovementMode && showPercentChange ? 'active' : ''}`}
+                  >
+                    %
+                  </button>
+                </div>
               </div>
 
               <div style={{ position: 'relative' }}>
@@ -2331,8 +2283,8 @@ function App() {
                           }
                         }
 
-                        // Helper function for comparison info icons
-                        const renderComparisonIcon = (title: string) => (
+                        // Reusable InfoIcon component
+                        const ComparisonInfoIcon = ({ title }: { title: string }) => (
                           <span
                             style={{
                               display: 'inline-flex',
@@ -2398,7 +2350,7 @@ function App() {
                               borderRadius: '8px'
                             }}>
                               {/* Global Graph Stats */}
-                              {incompatibleTypes && !showImprovementMode && (
+                              {incompatibleTypes ? (
                                 <>
                                   <div style={{ fontSize: '0.7rem', color: '#ef4444', marginBottom: '8px', fontWeight: 600 }}>
                                     ⚠️ INCOMPATIBLE UNIT TYPES
@@ -2407,127 +2359,26 @@ function App() {
                                     Cannot compare {unitTypes.join(' vs ')} together. These use different measurement systems and cannot be meaningfully compared.
                                   </div>
                                   <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                                    Switch to <strong>Unit Change</strong> or <strong>% Change</strong> mode to see differences.
+                                    Please add graphs with compatible result types only.
                                   </div>
                                 </>
-                              )}
-                              {!incompatibleTypes && globalStats && !showImprovementMode && (
+                              ) : globalStats && (
                                 <>
                                   <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '8px', fontWeight: 600 }}>
                                     COMPARISON STATS ({graphs.length} {graphs.length === 1 ? 'graph' : 'graphs'}, {allValidPoints.length} results)
                                   </div>
                                   <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem', color: '#cbd5e1', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px' }}>
-                                    <span>Avg: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.mean.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.mean) : globalStats.mean.toFixed(2)}</strong>{renderComparisonIcon("Average of all competitors")}</span>
-                                    <span>Med: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.median.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.median) : globalStats.median.toFixed(2)}</strong>{renderComparisonIcon("Median value")}</span>
-                                    <span>Best: <strong style={{ color: '#22c55e' }}>{formatValue(globalStats.min, resultType, eventId)}</strong>{renderComparisonIcon("Best result")}</span>
-                                    <span>Worst: <strong style={{ color: '#ef4444' }}>{formatValue(globalStats.max, resultType, eventId)}</strong>{renderComparisonIcon("Worst result")}</span>
+                                    <span>Avg: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.mean.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.mean) : globalStats.mean.toFixed(2)}</strong><ComparisonInfoIcon title="Average of all competitors" /></span>
+                                    <span>Med: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.median.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.median) : globalStats.median.toFixed(2)}</strong><ComparisonInfoIcon title="Median value" /></span>
+                                    <span>Best: <strong style={{ color: '#22c55e' }}>{formatValue(globalStats.min, resultType, eventId)}</strong><ComparisonInfoIcon title="Best result" /></span>
+                                    <span>Worst: <strong style={{ color: '#ef4444' }}>{formatValue(globalStats.max, resultType, eventId)}</strong><ComparisonInfoIcon title="Worst result" /></span>
                                     {allValidPoints.length > 1 && (
-                                      <span>Range: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? (globalStats.max - globalStats.min).toFixed(1) : isTimeBased ? formatWcaTime(globalStats.max - globalStats.min) : (globalStats.max - globalStats.min).toFixed(2)}</strong>{renderComparisonIcon("Range (max - min)")}</span>
+                                      <span>Range: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? (globalStats.max - globalStats.min).toFixed(1) : isTimeBased ? formatWcaTime(globalStats.max - globalStats.min) : (globalStats.max - globalStats.min).toFixed(2)}</strong><ComparisonInfoIcon title="Range (max - min)" /></span>
                                     )}
                                     {globalStats.stdDev !== null && (
-                                      <span>Std Dev: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.stdDev.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.stdDev) : globalStats.stdDev.toFixed(2)}</strong>{renderComparisonIcon("Standard deviation")}</span>
+                                      <span>Std Dev: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.stdDev.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.stdDev) : globalStats.stdDev.toFixed(2)}</strong><ComparisonInfoIcon title="Standard deviation" /></span>
                                     )}
-                                    <span>Results: <strong style={{ color: '#f1f5f9' }}>{allValidPoints.length}</strong>{renderComparisonIcon("Total valid results")}</span>
-                                  </div>
-                                </>
-                              )}
-
-                              {/* Head-to-Head Rankings */}
-                              {!incompatibleTypes && graphs.length > 1 && headToHeadStats.size > 0 && (
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '12px',
-                              height: '12px',
-                              borderRadius: '50%',
-                              border: '1px solid #64748b',
-                              color: '#64748b',
-                              fontSize: '8px',
-                              lineHeight: '10px',
-                              textAlign: 'center',
-                              marginLeft: '2px',
-                              position: 'relative',
-                            }}
-                            onMouseEnter={(e) => {
-                              const tooltip = (e.currentTarget as HTMLElement).querySelector(':scope > span:last-child');
-                              if (tooltip) {
-                                (tooltip as HTMLElement).style.opacity = '1';
-                                (tooltip as HTMLElement).style.visibility = 'visible';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              const tooltip = (e.currentTarget as HTMLElement).querySelector(':scope > span:last-child');
-                              if (tooltip) {
-                                (tooltip as HTMLElement).style.opacity = '0';
-                                (tooltip as HTMLElement).style.visibility = 'hidden';
-                              }
-                            }}
-                          >
-                            i
-                            <span style={{
-                              position: 'absolute',
-                              bottom: 'calc(100% + 4px)',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              padding: '4px 8px',
-                              background: '#1e293b',
-                              color: '#f1f5f9',
-                              fontSize: '10px',
-                              borderRadius: '4px',
-                              whiteSpace: 'nowrap',
-                              opacity: '0',
-                              visibility: 'hidden',
-                              transition: 'opacity 0.2s, visibility 0.2s',
-                              pointerEvents: 'none',
-                              zIndex: 1000,
-                            }}>
-                              {title}
-                            </span>
-                          </span>
-                        );
-
-                        return (
-                          <>
-                            {/* SECTION 1: COMPARISON STATS (always shown) */}
-                            <div style={{
-                              padding: '16px',
-                              background: 'rgba(30, 41, 59, 0.5)',
-                              borderBottom: '1px solid #334155',
-                              marginBottom: '16px',
-                              borderRadius: '8px'
-                            }>
-                              {/* Global Graph Stats */}
-                              {incompatibleTypes && !showImprovementMode && (
-                                <>
-                                  <div style={{ fontSize: '0.7rem', color: '#ef4444', marginBottom: '8px', fontWeight: 600 }}>
-                                    ⚠️ INCOMPATIBLE UNIT TYPES
-                                  </div>
-                                  <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '12px', lineHeight: '1.5' }}>
-                                    Cannot compare {unitTypes.join(' vs ')} together. These use different measurement systems and cannot be meaningfully compared.
-                                  </div>
-                                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                                    Switch to <strong>Unit Change</strong> or <strong>% Change</strong> mode to see differences.
-                                  </div>
-                                </>
-                              )}
-                              {!incompatibleTypes && globalStats && !showImprovementMode && (
-                                <>
-                                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '8px', fontWeight: 600 }}>
-                                    COMPARISON STATS ({graphs.length} {graphs.length === 1 ? 'graph' : 'graphs'}, {allValidPoints.length} results)
-                                  </div>
-                                  <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem', color: '#cbd5e1', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px' }}>
-                                    <span>Avg: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.mean.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.mean) : globalStats.mean.toFixed(2)}</strong>{renderComparisonIcon("Average of all competitors")}</span>
-                                    <span>Med: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.median.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.median) : globalStats.median.toFixed(2)}</strong>{renderComparisonIcon("Median value")}</span>
-                                    <span>Best: <strong style={{ color: '#22c55e' }}>{formatValue(globalStats.min, resultType, eventId)}</strong>{renderComparisonIcon("Best result")}</span>
-                                    <span>Worst: <strong style={{ color: '#ef4444' }}>{formatValue(globalStats.max, resultType, eventId)}</strong>{renderComparisonIcon("Worst result")}</span>
-                                    {allValidPoints.length > 1 && (
-                                      <span>Range: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? (globalStats.max - globalStats.min).toFixed(1) : isTimeBased ? formatWcaTime(globalStats.max - globalStats.min) : (globalStats.max - globalStats.min).toFixed(2)}</strong>{renderComparisonIcon("Range (max - min)")}</span>
-                                    )}
-                                    {globalStats.stdDev !== null && (
-                                      <span>Std Dev: <strong style={{ color: '#f1f5f9' }}>{isMultiBlind ? 'N/A' : isFmc ? globalStats.stdDev.toFixed(1) : isTimeBased ? formatWcaTime(globalStats.stdDev) : globalStats.stdDev.toFixed(2)}</strong>{renderComparisonIcon("Standard deviation")}</span>
-                                    )}
-                                    <span>Results: <strong style={{ color: '#f1f5f9' }}>{allValidPoints.length}</strong>{renderComparisonIcon("Total valid results")}</span>
+                                    <span>Results: <strong style={{ color: '#f1f5f9' }}>{allValidPoints.length}</strong><ComparisonInfoIcon title="Total valid results" /></span>
                                   </div>
                                 </>
                               )}
@@ -2565,10 +2416,10 @@ function App() {
                                           borderRadius: '6px'
                                         }}>
                                           <strong style={{ color: personColor, minWidth: '120px' }}>{label}</strong>
-                                          <span>Wins: <strong style={{ color: '#f1f5f9' }}>{stats.wins}/{stats.meetings}</strong>{renderComparisonIcon("Head-to-head wins")}</span>
-                                          <span>Avg pos: <strong style={{ color: '#f1f5f9' }}>{stats.avgPosition.toFixed(1)}</strong>{renderComparisonIcon("Average position in head-to-head meetings")}</span>
-                                          <span>Win rate: <strong style={{ color: winRate >= 50 ? '#22c55e' : '#ef4444' }}>{winRate.toFixed(0)}%</strong>{renderComparisonIcon("Percentage of meetings won")}</span>
-                                          <span>Improving: <strong style={{ color: '#f1f5f9' }}>{improvementRate.toFixed(0)}%</strong>{renderComparisonIcon("Percentage of results showing improvement")}</span>
+                                          <span>Wins: <strong style={{ color: '#f1f5f9' }}>{stats.wins}/{stats.meetings}</strong><ComparisonInfoIcon title="Head-to-head wins" /></span>
+                                          <span>Avg pos: <strong style={{ color: '#f1f5f9' }}>{stats.avgPosition.toFixed(1)}</strong><ComparisonInfoIcon title="Average position in head-to-head meetings" /></span>
+                                          <span>Win rate: <strong style={{ color: winRate >= 50 ? '#22c55e' : '#ef4444' }}>{winRate.toFixed(0)}%</strong><ComparisonInfoIcon title="Percentage of meetings won" /></span>
+                                          <span>Improving: <strong style={{ color: '#f1f5f9' }}>{improvementRate.toFixed(0)}%</strong><ComparisonInfoIcon title="Percentage of results showing improvement" /></span>
                                         </div>
                                       );
                                     })}
@@ -2599,7 +2450,7 @@ function App() {
                                           <span style={{ minWidth: '150px' }}>{corr.label1} ↔ {corr.label2}</span>
                                           <span>r = <strong style={{ color: corrColor }}>{corr.correlation.toFixed(2)}</strong></span>
                                           <span style={{ color: '#64748b', fontSize: '0.7em' }}>({corrLabel})</span>
-                                          {renderComparisonIcon("Pearson correlation coefficient (-1 to 1). Values closer to 1 indicate strong positive correlation (both improve/worsen together), values closer to -1 indicate strong negative correlation (one improves as other worsens).")}
+                                          <ComparisonInfoIcon title="Pearson correlation coefficient (-1 to 1). Values closer to 1 indicate strong positive correlation (both improve/worsen together), values closer to -1 indicate strong negative correlation (one improves as other worsens)." />
                                         </div>
                                       );
                                     })}
@@ -2820,19 +2671,19 @@ function App() {
                                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', fontSize: '0.85em' }}>
                                               <span style={{ color: comparisonStats.meanColor, display: 'flex', alignItems: 'center', gap: '2px' }}>
                                                 μ{isTimeBased ? formatWcaTime(Math.abs(point.originalValue - comparisonStats.mean)) : Math.abs(point.originalValue - comparisonStats.mean).toFixed(1)}
-                                                {renderComparisonIcon("Deviation from mean")}
+                                                <ComparisonInfoIcon title="Deviation from mean" />
                                               </span>
                                               <span style={{ color: comparisonStats.medianColor, display: 'flex', alignItems: 'center', gap: '2px' }}>
                                                 m{isTimeBased ? formatWcaTime(Math.abs(point.originalValue - comparisonStats.median)) : Math.abs(point.originalValue - comparisonStats.median).toFixed(1)}
-                                                {renderComparisonIcon("Deviation from median")}
+                                                <ComparisonInfoIcon title="Deviation from median" />
                                               </span>
                                               <span style={{ color: comparisonStats.percentileColor, display: 'flex', alignItems: 'center', gap: '2px' }}>
                                                 {comparisonStats.percentile !== null ? `${comparisonStats.percentile.toFixed(0)}%` : 'N/A'}
-                                                {renderComparisonIcon("Percentile rank (0-100%)")}
+                                                <ComparisonInfoIcon title="Percentile rank (0-100%)" />
                                               </span>
                                               <span style={{ color: comparisonStats.zScoreColor, display: 'flex', alignItems: 'center', gap: '2px' }}>
                                                 z{comparisonStats.zScore !== null ? (comparisonStats.zScore > 0 ? '+' : '') + comparisonStats.zScore.toFixed(1) : 'N/A'}
-                                                {renderComparisonIcon("Standard score (Z-Score)")}
+                                                <ComparisonInfoIcon title="Standard score (Z-Score)" />
                                               </span>
                                             </div>
                                           )}

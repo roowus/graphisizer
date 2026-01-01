@@ -30,3 +30,8 @@ dist-ssr
 **/*vibecoding*.md
 **/docs/internal/
 **/specs/internal/
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
