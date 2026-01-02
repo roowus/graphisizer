@@ -545,6 +545,23 @@ function App() {
   const [showPercentChange, setShowPercentChange] = useState(false);
   const [showUnitChange, setShowUnitChange] = useState(false);
 
+  // Calculate incompatible unit types for view mode buttons
+  const hasFmc = graphs.some(g => g.event === '333fm');
+  const hasMultiBlind = graphs.some(g => g.event === '333mbf');
+  const hasTimeBased = graphs.some(g => !['333fm', '333mbf'].includes(g.event || '') && !['rank'].includes(g.resultType || ''));
+  const hasRank = graphs.some(g => g.resultType === 'rank');
+
+  const incompatibleTypes = (hasFmc && (hasMultiBlind || hasTimeBased || hasRank)) ||
+                            (hasMultiBlind && (hasFmc || hasTimeBased || hasRank)) ||
+                            (hasRank && (hasFmc || hasMultiBlind)) ||
+                            (hasTimeBased && (hasFmc || hasMultiBlind));
+
+  const unitTypes = [];
+  if (hasFmc) unitTypes.push('FMC (moves)');
+  if (hasMultiBlind) unitTypes.push('Multi-Blind');
+  if (hasTimeBased) unitTypes.push('Time-based');
+  if (hasRank) unitTypes.push('Rank');
+
   console.log('=== App Component Loaded (v2) - Raw mode by default ===');
 
   const events = [
@@ -1668,40 +1685,65 @@ function App() {
                 <h3 className="chart-title">
                   {showImprovementMode ? 'Change' : 'Progression'}
                 </h3>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <button
                     onClick={() => {
-                      console.log('Raw button clicked');
-                      setShowImprovementMode(false);
-                      setShowUnitChange(false);
-                      setShowPercentChange(false);
+                      if (!incompatibleTypes) {
+                        setShowImprovementMode(false);
+                        setShowUnitChange(false);
+                        setShowPercentChange(false);
+                      }
                     }}
                     className={`improvement-toggle ${!showImprovementMode ? 'active' : ''}`}
+                    disabled={incompatibleTypes}
+                    style={{
+                      opacity: incompatibleTypes ? 0.4 : 1,
+                      cursor: incompatibleTypes ? 'not-allowed' : 'pointer'
+                    }}
+                    title={incompatibleTypes ? `Cannot compare ${unitTypes.join(' vs ')} in raw mode` : 'Show raw values'}
                   >
                     Raw
                   </button>
                   <button
                     onClick={() => {
-                      console.log('Unit button clicked - setting improvement mode');
-                      setShowImprovementMode(true);
-                      setShowUnitChange(true);
-                      setShowPercentChange(false);
+                      if (!incompatibleTypes) {
+                        setShowImprovementMode(true);
+                        setShowUnitChange(true);
+                        setShowPercentChange(false);
+                      }
                     }}
                     className={`improvement-toggle ${showImprovementMode && showUnitChange ? 'active' : ''}`}
+                    disabled={incompatibleTypes}
+                    style={{
+                      opacity: incompatibleTypes ? 0.4 : 1,
+                      cursor: incompatibleTypes ? 'not-allowed' : 'pointer'
+                    }}
+                    title={incompatibleTypes ? `Cannot compare ${unitTypes.join(' vs ')} in unit change mode` : 'Show unit change from previous result'}
                   >
                     Unit
                   </button>
                   <button
                     onClick={() => {
-                      console.log('Percent button clicked - setting improvement mode');
                       setShowImprovementMode(true);
                       setShowPercentChange(true);
                       setShowUnitChange(false);
                     }}
                     className={`improvement-toggle ${showImprovementMode && showPercentChange ? 'active' : ''}`}
+                    title="Show percent change from previous result"
                   >
                     %
                   </button>
+                  {incompatibleTypes && (
+                    <span style={{
+                      fontSize: '0.7rem',
+                      color: '#f97316',
+                      fontWeight: 600,
+                      marginLeft: '8px',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      ⚠️ Incompatible units
+                    </span>
+                  )}
                 </div>
               </div>
 
