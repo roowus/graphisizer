@@ -24,6 +24,18 @@
     <meta property="twitter:title" content="Graphisizer - Track & Compare WCA Progression" />
     <meta property="twitter:description" content="Visualize WCA competitor progression and compare performances over time. Track personal bests, analyze trends, and share comparisons." />
     <meta property="twitter:image" content="https://graphisizer.vercel.app/social-preview.svg" />
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQVN6LCVW8"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-LQVN6LCVW8', {
+        'anonymize_ip': true,
+        'cookie_flags': 'samesite=none;secure'
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>
