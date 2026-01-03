@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { GoogleAnalytics, trackCompetitorAdded, trackViewModeChanged, trackGraphComparison } from './GoogleAnalytics';
 import { BarChart3, X, Trophy, Search, TrendingUp, Users, Share2 } from 'lucide-react';
 import {
   LineChart,
@@ -714,6 +715,12 @@ function App() {
 
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, '', newUrl);
+
+    // Track graph comparisons when there are 2+ competitors
+    if (graphs.length >= 2 && !graphs.some(g => g.loading)) {
+      const firstEvent = graphs[0].event;
+      trackGraphComparison(graphs.length, firstEvent);
+    }
   }, [graphs, showImprovementMode, showUnitChange, showPercentChange]);
 
   // Search for WCA persons by name or ID
@@ -867,6 +874,9 @@ function App() {
     setGraphs([...graphs, newGraph]);
     setWcaId('');
     setSearchQuery('');
+
+    // Track competitor added
+    trackCompetitorAdded(newGraph.wcaId, newGraph.event, newGraph.resultType);
 
     try {
       const data = await fetchGraphData(newGraph.wcaId, newGraph.event, newGraph.resultType);
@@ -1192,6 +1202,7 @@ function App() {
 
   return (
     <div className="app">
+      <GoogleAnalytics />
       <header className="app-header">
         <div className="header-content">
           <div className="logo" onClick={resetToHomepage} style={{ cursor: 'pointer' }}>
@@ -1735,6 +1746,7 @@ function App() {
                         setShowImprovementMode(false);
                         setShowUnitChange(false);
                         setShowPercentChange(false);
+                        trackViewModeChanged('raw');
                       }
                     }}
                     className={`improvement-toggle ${!showImprovementMode ? 'active' : ''}`}
@@ -1753,6 +1765,7 @@ function App() {
                         setShowImprovementMode(true);
                         setShowUnitChange(true);
                         setShowPercentChange(false);
+                        trackViewModeChanged('unit');
                       }
                     }}
                     className={`improvement-toggle ${showImprovementMode && showUnitChange ? 'active' : ''}`}
@@ -1770,6 +1783,7 @@ function App() {
                       setShowImprovementMode(true);
                       setShowPercentChange(true);
                       setShowUnitChange(false);
+                      trackViewModeChanged('percent');
                     }}
                     className={`improvement-toggle ${showImprovementMode && showPercentChange ? 'active' : ''}`}
                     title="Show percent change from previous result"
