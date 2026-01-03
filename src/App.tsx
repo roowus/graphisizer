@@ -1,5 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
-import React from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3, X, Trophy, Search, TrendingUp, Users, Share2 } from 'lucide-react';
 import {
@@ -545,6 +544,9 @@ function App() {
   const [showPercentChange, setShowPercentChange] = useState(false);
   const [showUnitChange, setShowUnitChange] = useState(false);
 
+  // Track if this is the initial render to avoid clearing URL params on load
+  const isInitialMount = useRef(true);
+
   // Calculate incompatible unit types for view mode buttons
   const hasFmc = graphs.some(g => g.event === '333fm');
   const hasMultiBlind = graphs.some(g => g.event === '333mbf');
@@ -636,10 +638,27 @@ function App() {
       }
     });
 
+    // Parse view mode from URL
+    const viewMode = params.get('view');
+    if (viewMode === 'percent') {
+      setShowImprovementMode(true);
+      setShowPercentChange(true);
+      setShowUnitChange(false);
+    } else if (viewMode === 'unit') {
+      setShowImprovementMode(true);
+      setShowUnitChange(true);
+      setShowPercentChange(false);
+    } else {
+      // Default to raw mode
+      setShowImprovementMode(false);
+      setShowPercentChange(false);
+      setShowUnitChange(false);
+    }
+
     if (graphParams.length > 0) {
       setGraphs(graphParams);
       // Fetch data for each graph using the same API as the main app
-      graphParams.forEach(async (graph) => {
+      Promise.all(graphParams.map(async (graph) => {
         try {
           // Use the same fetchGraphData function as the main app
           const result = await fetchGraphData(graph.wcaId, graph.event, graph.resultType);
@@ -657,12 +676,23 @@ function App() {
               : g
           ));
         }
-      });
+      }));
     }
+
+    // Mark initial mount as complete AFTER setting state
+    // Use setTimeout to ensure state updates are batched
+    setTimeout(() => {
+      isInitialMount.current = false;
+    }, 0);
   }, []);
 
-  // Update URL when graphs change
+  // Update URL when graphs or view mode changes
   useEffect(() => {
+    // Skip URL update on initial mount to preserve URL params from navigation
+    if (isInitialMount.current) {
+      return;
+    }
+
     if (graphs.length === 0) {
       window.history.replaceState({}, '', window.location.pathname);
       return;
@@ -673,9 +703,18 @@ function App() {
       params.set(`g${index + 1}`, `${graph.wcaId}:${graph.event}:${graph.resultType}`);
     });
 
+    // Add view mode to URL
+    if (showImprovementMode) {
+      if (showPercentChange) {
+        params.set('view', 'percent');
+      } else if (showUnitChange) {
+        params.set('view', 'unit');
+      }
+    }
+
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, '', newUrl);
-  }, [graphs]);
+  }, [graphs, showImprovementMode, showUnitChange, showPercentChange]);
 
   // Search for WCA persons by name or ID
   useEffect(() => {
@@ -779,11 +818,13 @@ function App() {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setSearchQuery(value);
     // Auto-uppercase if it looks like a WCA ID pattern (starts with digit)
     if (/^\d/.test(value)) {
-      setWcaId(value.toUpperCase());
+      const uppercased = value.toUpperCase();
+      setSearchQuery(uppercased);
+      setWcaId(uppercased);
     } else {
+      setSearchQuery(value);
       setWcaId(value);
     }
   };
@@ -1211,8 +1252,9 @@ function App() {
             </div>
 
             <div className="form-group">
-              <label>Event</label>
+              <label htmlFor="event-select">Event</label>
               <select
+                id="event-select"
                 value={selectedEvent}
                 onChange={(e) => setSelectedEvent(e.target.value)}
                 className="form-input"
@@ -1226,8 +1268,9 @@ function App() {
             </div>
 
             <div className="form-group">
-              <label>Result Type</label>
+              <label htmlFor="result-type-select">Result Type</label>
               <select
+                id="result-type-select"
                 value={selectedResultType}
                 onChange={(e) => setSelectedResultType(e.target.value)}
                 className="form-input"
