@@ -31,7 +31,11 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-R3DGJ6M1DK');
+      gtag('config', 'G-R3DGJ6M1DK', {
+        'debug_mode': true
+      });
+      console.log('GA CONFIGURED - Measurement ID: G-R3DGJ6M1DK');
+      console.log('GA DataLayer:', window.dataLayer);
     </script>
   </head>
   <body>
