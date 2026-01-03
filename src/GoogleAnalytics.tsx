@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 
-// Google Analytics tracking ID - REPLACE WITH YOUR ACTUAL GA4 MEASUREMENT ID
-// TODO: Update this with your real Google Analytics 4 Measurement ID
-// To get your ID: https://support.google.com/analytics/answer/9539598
-const GA_MEASUREMENT_ID = 'G-XXXXXXXXXX'; // Replace with your actual GA4 measurement ID
+// Google Analytics tracking ID
+const GA_MEASUREMENT_ID = 'G-LQVN6LCVW8';
 
 /**
  * Google Analytics Provider Component
