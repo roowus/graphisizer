@@ -35,13 +35,23 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
+
+      // Test event - should appear in GA Realtime
+      gtag('event', 'test_event', {
+        'event_category': 'testing',
+        'event_label': 'GA is working'
+      });
+
       gtag('config', 'G-R3DGJ6M1DK', {
-        'debug_mode': true
+        'debug_mode': true,
+        'send_page_view': true
       });
       gtag('config', 'G-V245H30CQX', {
-        'debug_mode': true
+        'debug_mode': true,
+        'send_page_view': true
       });
-      console.log('Google Analytics initialized - Properties: G-R3DGJ6M1DK, G-V245H30CQX');
+      console.log('✅ GA CONFIGURED - Properties: G-R3DGJ6M1DK, G-V245H30CQX');
+      console.log('✅ Test event sent - check Realtime report for "test_event"');
     </script>
   </head>
   <body>
